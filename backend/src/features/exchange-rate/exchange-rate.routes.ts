@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { ExchangeRateService, IHttpClient, IFallbackRateStore } from '../services/exchange-rate-service';
-import { APIError } from '../types';
-import { InMemoryCache, appCache } from '../cache/in-memory-cache';
+import { ExchangeRateService, IHttpClient, IFallbackRateStore } from './exchange-rate.service';
+import { APIError } from '../../types';
+import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router with injected dependencies (for testing)

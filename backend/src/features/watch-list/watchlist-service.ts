@@ -1,5 +1,5 @@
-import { WatchlistItem } from '../types';
-import { ChartService } from './chart-service';
+import { WatchlistItem } from '../../types';
+import { ChartService } from '../charts/chart.service';
 
 // ────────────────────────────────────────────────────────────
 // Error Types

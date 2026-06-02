@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { WatchlistService, WatchlistError, WatchlistSortField, WatchlistSortOrder } from '../services/watchlist-service';
-import { ChartService, IFinancialApiClient } from '../services/chart-service';
-import { InMemoryCache, appCache } from '../cache/in-memory-cache';
-import { APIError } from '../types';
+import { WatchlistService, WatchlistError, WatchlistSortField, WatchlistSortOrder } from './watchlist-service';
+import { ChartService, IFinancialApiClient } from '../charts/chart.service';
+import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { APIError } from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // Constants
@@ -194,7 +194,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 // In production, wire a real API client in app.ts
 // ────────────────────────────────────────────────────────────
 
-import { StubFinancialApiClient } from './stock-routes';
+import { StubFinancialApiClient } from '../charts/stock.routes';
 
 export default createWatchlistRouter({
   apiClient: new StubFinancialApiClient(),

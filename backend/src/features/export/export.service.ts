@@ -1,5 +1,5 @@
-import { ExportFilters, StructuredTransaction, Transaction } from '../types';
-import { ITransactionRepository } from '../repositories/transaction-repository';
+import { ExportFilters, StructuredTransaction, Transaction } from '../../types';
+import { ITransactionRepository } from '../transaction/transaction.repository';
 
 // ────────────────────────────────────────────────────────────
 // CSV Constants

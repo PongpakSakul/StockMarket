@@ -5,9 +5,9 @@ import {
   IPriceProvider,
   IExchangeRateProvider,
   IDividendProvider,
-} from '../services/portfolio-service';
-import { APIError, TimeRange } from '../types';
-import { InMemoryCache, appCache } from '../cache/in-memory-cache';
+} from './portfolio.service';
+import { APIError, TimeRange } from '../../types';
+import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
 
 // ────────────────────────────────────────────────────────────
 // Constants

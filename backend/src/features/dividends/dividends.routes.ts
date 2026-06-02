@@ -1,14 +1,21 @@
 import { Router, Request, Response } from 'express';
-import { DividendService } from './service';
-import { InMemoryDividendRepository } from './repository';
-import { InMemoryTransactionRepository } from '../../repositories/transaction-repository';
+import { DividendService } from './dividends.service';
+import { InMemoryDividendRepository } from './dividends.repository';
+import { InMemoryTransactionRepository } from '../transaction/transaction.repository';
 import { DividendFilters, APIError, TimeRange } from '../../types';
-import { ValidationError } from '../../services/transaction-service';
+import { ValidationError } from '../transaction/transaction.service';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+// ────────────────────────────────────────────────────────────
+// Default repository & service (can be overridden via factory)
+// ────────────────────────────────────────────────────────────
 
 const defaultDividendRepository = new InMemoryDividendRepository();
 const defaultTransactionRepository = new InMemoryTransactionRepository();
 const defaultService = new DividendService(defaultDividendRepository, defaultTransactionRepository);
+
+// ────────────────────────────────────────────────────────────
+// Factory to create router with injected service (for testing)
+// ────────────────────────────────────────────────────────────
 
 export interface DividendsRouterDeps {
   service?: DividendService;
@@ -16,6 +23,7 @@ export interface DividendsRouterDeps {
 }
 
 export function createDividendsRouter(depsOrService?: DividendsRouterDeps | DividendService): Router {
+  // Support both old signature (service only) and new deps object
   let dividendService: DividendService;
   let cache: InMemoryCache;
 
@@ -29,12 +37,25 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
   const router = Router();
 
+  /**
+   * Invalidate all portfolio caches for a given user.
+   * Called after dividend create/update/delete to ensure fresh portfolio data.
+   * Requirements: 5.6, 7.2
+   */
   function invalidatePortfolioCache(userId: string): void {
     cache.invalidateByPrefix(`portfolio:summary:${userId}`);
     cache.invalidateByPrefix(`portfolio:allocation:${userId}`);
     cache.invalidateByPrefix(`portfolio:performance:${userId}`);
   }
 
+  /**
+   * GET /api/dividends/summary
+   *
+   * Query params:
+   *   - range: time range (1W | 1M | 3M | 6M | 1Y | ALL)
+   *
+   * Requirements: 11.6
+   */
   router.get('/summary', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
@@ -63,6 +84,18 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
     }
   });
 
+  /**
+   * GET /api/dividends
+   *
+   * Query params:
+   *   - ticker: filter by ticker symbol
+   *   - from: filter by start date (ISO 8601)
+   *   - to: filter by end date (ISO 8601)
+   *   - page: page number (default 1)
+   *   - pageSize: items per page (default 20)
+   *
+   * Requirements: 11.4
+   */
   router.get('/', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
@@ -102,11 +135,19 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
     }
   });
 
+  /**
+   * POST /api/dividends
+   *
+   * Body: { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld }
+   *
+   * Requirements: 11.1
+   */
   router.post('/', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
       const { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld } = req.body;
 
+      // Basic presence validation
       if (
         !tickerSymbol ||
         !dividendDate ||
@@ -133,6 +174,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
         sharesHeld: Number(sharesHeld),
       });
 
+      // Invalidate portfolio cache after successful dividend create (Req 5.6, 7.2)
       invalidatePortfolioCache(userId);
 
       res.status(201).json(dividend);
@@ -157,6 +199,13 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
     }
   });
 
+  /**
+   * PUT /api/dividends/:id
+   *
+   * Body: { tickerSymbol?, dividendDate?, amountPerShare?, totalAmount?, sharesHeld? }
+   *
+   * Requirements: 11.1
+   */
   router.put('/:id', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
@@ -172,6 +221,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
       const dividend = await dividendService.updateDividend(id, userId, updateData);
 
+      // Invalidate portfolio cache after successful dividend update (Req 5.6, 7.2)
       invalidatePortfolioCache(userId);
 
       res.status(200).json(dividend);
@@ -196,6 +246,11 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
     }
   });
 
+  /**
+   * DELETE /api/dividends/:id
+   *
+   * Requirements: 11.1
+   */
   router.delete('/:id', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
@@ -203,6 +258,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
       await dividendService.deleteDividend(id, userId);
 
+      // Invalidate portfolio cache after successful dividend delete (Req 5.6, 7.2)
       invalidatePortfolioCache(userId);
 
       res.status(204).send();
@@ -230,6 +286,10 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
   return router;
 }
 
+// ────────────────────────────────────────────────────────────
+// Helper: map validation error codes to HTTP status codes
+// ────────────────────────────────────────────────────────────
+
 function getStatusCodeForValidationError(code: string): number {
   switch (code) {
     case 'INVALID_TICKER':
@@ -246,4 +306,5 @@ function getStatusCodeForValidationError(code: string): number {
   }
 }
 
+// Default export for convenience
 export default createDividendsRouter();

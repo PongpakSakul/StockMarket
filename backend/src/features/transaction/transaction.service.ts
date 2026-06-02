@@ -1,11 +1,11 @@
-import { Transaction, BuyPoint, TransactionFilters } from '../types';
+import { Transaction, BuyPoint, TransactionFilters } from '../../types';
 import {
   ITransactionRepository,
   CreateTransactionDTO,
   UpdateTransactionDTO,
   PaginatedResult,
-} from '../repositories/transaction-repository';
-import { KNOWN_TICKER_LIST } from './slip-parser';
+} from './transaction.repository';
+import { KNOWN_TICKER_LIST } from '../slips/slip-parser.service';
 
 // ────────────────────────────────────────────────────────────
 // Validation errors

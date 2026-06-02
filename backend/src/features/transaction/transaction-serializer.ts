@@ -1,4 +1,4 @@
-import { StructuredTransaction } from '../types';
+import { StructuredTransaction } from '../../types';
 
 /**
  * Serialize a StructuredTransaction to a JSON string.

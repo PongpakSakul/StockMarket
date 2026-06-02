@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { ExportService, RepositoryTransactionProvider } from '../services/export-service';
-import { InMemoryTransactionRepository } from '../repositories/transaction-repository';
-import { ExportFilters, ExportFormat, APIError } from '../types';
+import { ExportService, RepositoryTransactionProvider } from './export.service';
+import { InMemoryTransactionRepository } from '../transaction/transaction.repository';
+import { ExportFilters, ExportFormat, APIError } from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // Default repository & service (can be overridden via factory)

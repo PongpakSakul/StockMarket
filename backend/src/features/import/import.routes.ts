@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { DimeImportService } from '../services/dime-import-service';
-import { InMemoryTransactionRepository } from '../repositories/transaction-repository';
-import { APIError, StructuredTransaction } from '../types';
+import { DimeImportService } from './dime-import.service';
+import { InMemoryTransactionRepository } from '../transaction/transaction.repository';
+import { APIError, StructuredTransaction } from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // Multer configuration for file uploads

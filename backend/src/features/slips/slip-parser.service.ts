@@ -1,4 +1,4 @@
-import { ParseResult, StructuredTransaction } from '../types';
+import { ParseResult, StructuredTransaction } from '../../types';
 
 /**
  * Known ticker symbols from the seed database.

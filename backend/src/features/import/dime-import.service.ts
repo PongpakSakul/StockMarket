@@ -4,8 +4,8 @@ import {
   ImportError,
   DuplicateCheckResult,
   Transaction,
-} from '../types';
-import { ITransactionRepository, CreateTransactionDTO } from '../repositories/transaction-repository';
+} from '../../types';
+import { ITransactionRepository, CreateTransactionDTO } from '../transaction/transaction.repository';
 
 // ────────────────────────────────────────────────────────────
 // Import Result

@@ -1,6 +1,6 @@
-import { ExchangeRate } from '../types';
-import { InMemoryCache } from '../cache/in-memory-cache';
-import { IExchangeRateProvider } from './portfolio-service';
+import { ExchangeRate } from '../../types';
+import { InMemoryCache } from '../../cache/in-memory-cache';
+import { IExchangeRateProvider } from '../portfolio/portfolio.service';
 
 // ────────────────────────────────────────────────────────────
 // Constants

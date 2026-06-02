@@ -1,5 +1,5 @@
-import { OHLCData, StockInfo, TickerSearchResult, TimeRange } from '../types';
-import { InMemoryCache } from '../cache/in-memory-cache';
+import { OHLCData, StockInfo, TickerSearchResult, TimeRange } from '../../types';
+import { InMemoryCache } from '../../cache/in-memory-cache';
 
 // ────────────────────────────────────────────────────────────
 // Constants

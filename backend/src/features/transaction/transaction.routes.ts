@@ -1,38 +1,35 @@
 import { Router, Request, Response } from 'express';
-import { DividendService } from '../services/dividend-service';
-import { InMemoryDividendRepository } from '../repositories/dividend-repository';
-import { InMemoryTransactionRepository } from '../repositories/transaction-repository';
-import { DividendFilters, APIError, TimeRange } from '../types';
-import { ValidationError } from '../services/transaction-service';
-import { InMemoryCache, appCache } from '../cache/in-memory-cache';
+import { TransactionService, ValidationError } from './transaction.service';
+import { InMemoryTransactionRepository } from './transaction.repository';
+import { TransactionFilters, APIError } from '../../types';
+import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
 
 // ────────────────────────────────────────────────────────────
 // Default repository & service (can be overridden via factory)
 // ────────────────────────────────────────────────────────────
 
-const defaultDividendRepository = new InMemoryDividendRepository();
-const defaultTransactionRepository = new InMemoryTransactionRepository();
-const defaultService = new DividendService(defaultDividendRepository, defaultTransactionRepository);
+const defaultRepository = new InMemoryTransactionRepository();
+const defaultService = new TransactionService(defaultRepository);
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router with injected service (for testing)
 // ────────────────────────────────────────────────────────────
 
-export interface DividendsRouterDeps {
-  service?: DividendService;
+export interface TransactionsRouterDeps {
+  service?: TransactionService;
   cache?: InMemoryCache;
 }
 
-export function createDividendsRouter(depsOrService?: DividendsRouterDeps | DividendService): Router {
+export function createTransactionsRouter(depsOrService?: TransactionsRouterDeps | TransactionService): Router {
   // Support both old signature (service only) and new deps object
-  let dividendService: DividendService;
+  let txnService: TransactionService;
   let cache: InMemoryCache;
 
-  if (depsOrService instanceof DividendService) {
-    dividendService = depsOrService;
+  if (depsOrService instanceof TransactionService) {
+    txnService = depsOrService;
     cache = appCache;
   } else {
-    dividendService = depsOrService?.service ?? defaultService;
+    txnService = depsOrService?.service ?? defaultService;
     cache = depsOrService?.cache ?? appCache;
   }
 
@@ -40,7 +37,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
   /**
    * Invalidate all portfolio caches for a given user.
-   * Called after dividend create/update/delete to ensure fresh portfolio data.
+   * Called after transaction create/update/delete to ensure fresh portfolio data.
    * Requirements: 5.6, 7.2
    */
   function invalidatePortfolioCache(userId: string): void {
@@ -50,57 +47,22 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
   }
 
   /**
-   * GET /api/dividends/summary
-   *
-   * Query params:
-   *   - range: time range (1W | 1M | 3M | 6M | 1Y | ALL)
-   *
-   * Requirements: 11.6
-   */
-  router.get('/summary', async (req: Request, res: Response) => {
-    try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
-      const range = (req.query.range as string) || '1Y';
-
-      const validRanges: TimeRange[] = ['1W', '1M', '3M', '6M', '1Y', 'ALL'];
-      if (!validRanges.includes(range as TimeRange)) {
-        const apiError: APIError = {
-          code: 'INVALID_RANGE',
-          message: `Invalid time range "${range}". Valid values: ${validRanges.join(', ')}`,
-          retryable: false,
-        };
-        res.status(400).json(apiError);
-        return;
-      }
-
-      const summary = await dividendService.getDividendSummary(userId, range as TimeRange);
-      res.status(200).json(summary);
-    } catch {
-      const apiError: APIError = {
-        code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred while fetching dividend summary',
-        retryable: true,
-      };
-      res.status(500).json(apiError);
-    }
-  });
-
-  /**
-   * GET /api/dividends
+   * GET /api/transactions
    *
    * Query params:
    *   - ticker: filter by ticker symbol
    *   - from: filter by start date (ISO 8601)
    *   - to: filter by end date (ISO 8601)
+   *   - sort: sort field (date | ticker | amount)
+   *   - order: sort direction (asc | desc)
    *   - page: page number (default 1)
    *   - pageSize: items per page (default 20)
    *
-   * Requirements: 11.4
+   * Requirements: 6.5, 6.6
    */
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
-      const filters: DividendFilters = {};
+      const filters: TransactionFilters = {};
 
       if (req.query.ticker) {
         filters.tickerSymbol = String(req.query.ticker).toUpperCase();
@@ -110,6 +72,18 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
       }
       if (req.query.to) {
         filters.toDate = String(req.query.to);
+      }
+      if (req.query.sort) {
+        const sortBy = String(req.query.sort);
+        if (['date', 'ticker', 'amount'].includes(sortBy)) {
+          filters.sortBy = sortBy as 'date' | 'ticker' | 'amount';
+        }
+      }
+      if (req.query.order) {
+        const order = String(req.query.order);
+        if (['asc', 'desc'].includes(order)) {
+          filters.sortOrder = order as 'asc' | 'desc';
+        }
       }
       if (req.query.page) {
         const page = parseInt(String(req.query.page), 10);
@@ -124,12 +98,12 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
         }
       }
 
-      const result = await dividendService.getDividends(userId, filters);
+      const result = await txnService.getTransactions(filters);
       res.status(200).json(result);
     } catch {
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred while fetching dividends',
+        message: 'An unexpected error occurred while fetching transactions',
         retryable: true,
       };
       res.status(500).json(apiError);
@@ -137,48 +111,44 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
   });
 
   /**
-   * POST /api/dividends
+   * POST /api/transactions
    *
-   * Body: { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld }
+   * Body: { tickerSymbol, transactionDate, pricePerShare, shares, totalAmount, source?, slipImageUrl?, ocrRawText? }
    *
-   * Requirements: 11.1
+   * Requirements: 6.1, 6.2
    */
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
-      const { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld } = req.body;
+      const { tickerSymbol, transactionDate, pricePerShare, shares, totalAmount, source, slipImageUrl, ocrRawText } = req.body;
 
       // Basic presence validation
-      if (
-        !tickerSymbol ||
-        !dividendDate ||
-        amountPerShare === undefined ||
-        totalAmount === undefined ||
-        sharesHeld === undefined
-      ) {
+      if (!tickerSymbol || !transactionDate || pricePerShare === undefined || shares === undefined || totalAmount === undefined) {
         const apiError: APIError = {
           code: 'INVALID_AMOUNT',
-          message:
-            'Missing required fields: tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld',
+          message: 'Missing required fields: tickerSymbol, transactionDate, pricePerShare, shares, totalAmount',
           retryable: false,
         };
         res.status(400).json(apiError);
         return;
       }
 
-      const dividend = await dividendService.createDividend({
+      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const transaction = await txnService.createTransaction({
         userId,
         tickerSymbol: String(tickerSymbol).toUpperCase(),
-        dividendDate: String(dividendDate),
-        amountPerShare: Number(amountPerShare),
+        transactionDate: String(transactionDate),
+        pricePerShare: Number(pricePerShare),
+        shares: Number(shares),
         totalAmount: Number(totalAmount),
-        sharesHeld: Number(sharesHeld),
+        source: source || 'manual',
+        slipImageUrl,
+        ocrRawText,
       });
 
-      // Invalidate portfolio cache after successful dividend create (Req 5.6, 7.2)
+      // Invalidate portfolio cache after successful create (Req 5.6, 7.2)
       invalidatePortfolioCache(userId);
 
-      res.status(201).json(dividend);
+      res.status(201).json(transaction);
     } catch (err) {
       if (err instanceof ValidationError) {
         const statusCode = getStatusCodeForValidationError(err.code);
@@ -193,7 +163,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred while creating the dividend',
+        message: 'An unexpected error occurred while creating the transaction',
         retryable: true,
       };
       res.status(500).json(apiError);
@@ -201,31 +171,32 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
   });
 
   /**
-   * PUT /api/dividends/:id
+   * PUT /api/transactions/:id
    *
-   * Body: { tickerSymbol?, dividendDate?, amountPerShare?, totalAmount?, sharesHeld? }
+   * Body: { tickerSymbol?, transactionDate?, pricePerShare?, shares?, totalAmount?, source? }
    *
-   * Requirements: 11.1
+   * Requirements: 6.3
    */
   router.put('/:id', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
       const id = req.params.id as string;
-      const { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld } = req.body;
+      const { tickerSymbol, transactionDate, pricePerShare, shares, totalAmount, source } = req.body;
 
       const updateData: Record<string, unknown> = {};
       if (tickerSymbol !== undefined) updateData.tickerSymbol = String(tickerSymbol).toUpperCase();
-      if (dividendDate !== undefined) updateData.dividendDate = String(dividendDate);
-      if (amountPerShare !== undefined) updateData.amountPerShare = Number(amountPerShare);
+      if (transactionDate !== undefined) updateData.transactionDate = String(transactionDate);
+      if (pricePerShare !== undefined) updateData.pricePerShare = Number(pricePerShare);
+      if (shares !== undefined) updateData.shares = Number(shares);
       if (totalAmount !== undefined) updateData.totalAmount = Number(totalAmount);
-      if (sharesHeld !== undefined) updateData.sharesHeld = Number(sharesHeld);
+      if (source !== undefined) updateData.source = source;
 
-      const dividend = await dividendService.updateDividend(id, userId, updateData);
+      const transaction = await txnService.updateTransaction(id, updateData);
 
-      // Invalidate portfolio cache after successful dividend update (Req 5.6, 7.2)
+      // Invalidate portfolio cache after successful update (Req 5.6, 6.4, 7.2)
       invalidatePortfolioCache(userId);
 
-      res.status(200).json(dividend);
+      res.status(200).json(transaction);
     } catch (err) {
       if (err instanceof ValidationError) {
         const statusCode = getStatusCodeForValidationError(err.code);
@@ -240,7 +211,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred while updating the dividend',
+        message: 'An unexpected error occurred while updating the transaction',
         retryable: true,
       };
       res.status(500).json(apiError);
@@ -248,18 +219,17 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
   });
 
   /**
-   * DELETE /api/dividends/:id
+   * DELETE /api/transactions/:id
    *
-   * Requirements: 11.1
+   * Requirements: 6.4
    */
   router.delete('/:id', async (req: Request, res: Response) => {
     try {
       const userId = (req.headers['x-user-id'] as string) || 'default-user';
       const id = req.params.id as string;
+      await txnService.deleteTransaction(id);
 
-      await dividendService.deleteDividend(id, userId);
-
-      // Invalidate portfolio cache after successful dividend delete (Req 5.6, 7.2)
+      // Invalidate portfolio cache after successful delete (Req 5.6, 6.4, 7.2)
       invalidatePortfolioCache(userId);
 
       res.status(204).send();
@@ -277,7 +247,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
 
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred while deleting the dividend',
+        message: 'An unexpected error occurred while deleting the transaction',
         retryable: true,
       };
       res.status(500).json(apiError);
@@ -296,16 +266,13 @@ function getStatusCodeForValidationError(code: string): number {
     case 'INVALID_TICKER':
     case 'INVALID_DATE':
     case 'INVALID_AMOUNT':
-    case 'INVALID_RANGE':
       return 400;
     case 'NOT_FOUND':
       return 404;
-    case 'TICKER_NOT_HELD':
-      return 400;
     default:
       return 400;
   }
 }
 
 // Default export for convenience
-export default createDividendsRouter();
+export default createTransactionsRouter();

@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { extractText } from '../services/ocr-service';
-import { parse, toStructuredTransaction } from '../services/slip-parser';
-import { APIError, ParseResult, StructuredTransaction } from '../types';
+import { extractText } from './ocr.service';
+import { parse, toStructuredTransaction } from './slip-parser.service';
+import { APIError, ParseResult, StructuredTransaction } from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // Constants

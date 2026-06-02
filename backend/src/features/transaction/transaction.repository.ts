@@ -1,24 +1,28 @@
-import { Dividend, DividendFilters } from '../types';
+import { Transaction, TransactionSource, TransactionFilters } from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // DTOs
 // ────────────────────────────────────────────────────────────
 
-export interface CreateDividendDTO {
+export interface CreateTransactionDTO {
   userId: string;
   tickerSymbol: string;
-  dividendDate: string;
-  amountPerShare: number;
+  transactionDate: string;
+  pricePerShare: number;
+  shares: number;
   totalAmount: number;
-  sharesHeld: number;
+  source?: TransactionSource;
+  slipImageUrl?: string;
+  ocrRawText?: string;
 }
 
-export interface UpdateDividendDTO {
+export interface UpdateTransactionDTO {
   tickerSymbol?: string;
-  dividendDate?: string;
-  amountPerShare?: number;
+  transactionDate?: string;
+  pricePerShare?: number;
+  shares?: number;
   totalAmount?: number;
-  sharesHeld?: number;
+  source?: TransactionSource;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -37,14 +41,13 @@ export interface PaginatedResult<T> {
 // Repository interface
 // ────────────────────────────────────────────────────────────
 
-export interface IDividendRepository {
-  create(dto: CreateDividendDTO): Promise<Dividend>;
-  update(id: string, dto: UpdateDividendDTO): Promise<Dividend | null>;
+export interface ITransactionRepository {
+  create(dto: CreateTransactionDTO): Promise<Transaction>;
+  update(id: string, dto: UpdateTransactionDTO): Promise<Transaction | null>;
   delete(id: string): Promise<boolean>;
-  findById(id: string): Promise<Dividend | null>;
-  findAll(userId: string, filters: DividendFilters): Promise<PaginatedResult<Dividend>>;
-  findByUser(userId: string): Promise<Dividend[]>;
-  findByUserAndTicker(userId: string, ticker: string): Promise<Dividend[]>;
+  findById(id: string): Promise<Transaction | null>;
+  findAll(filters: TransactionFilters): Promise<PaginatedResult<Transaction>>;
+  findByUserAndTicker(userId: string, ticker: string): Promise<Transaction[]>;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -54,45 +57,49 @@ export interface IDividendRepository {
 let nextId = 1;
 
 function generateId(): string {
-  return `div-${nextId++}`;
+  return `txn-${nextId++}`;
 }
 
-export class InMemoryDividendRepository implements IDividendRepository {
-  private store: Map<string, Dividend> = new Map();
+export class InMemoryTransactionRepository implements ITransactionRepository {
+  private store: Map<string, Transaction> = new Map();
 
   /** Reset the store — useful between tests */
   clear(): void {
     this.store.clear();
   }
 
-  async create(dto: CreateDividendDTO): Promise<Dividend> {
+  async create(dto: CreateTransactionDTO): Promise<Transaction> {
     const now = new Date().toISOString();
-    const dividend: Dividend = {
+    const txn: Transaction = {
       id: generateId(),
       userId: dto.userId,
       tickerSymbol: dto.tickerSymbol,
-      dividendDate: dto.dividendDate,
-      amountPerShare: dto.amountPerShare,
+      transactionDate: dto.transactionDate,
+      pricePerShare: dto.pricePerShare,
+      shares: dto.shares,
       totalAmount: dto.totalAmount,
-      sharesHeld: dto.sharesHeld,
+      source: dto.source ?? 'manual',
+      slipImageUrl: dto.slipImageUrl,
+      ocrRawText: dto.ocrRawText,
       createdAt: now,
       updatedAt: now,
     };
-    this.store.set(dividend.id, dividend);
-    return { ...dividend };
+    this.store.set(txn.id, txn);
+    return { ...txn };
   }
 
-  async update(id: string, dto: UpdateDividendDTO): Promise<Dividend | null> {
+  async update(id: string, dto: UpdateTransactionDTO): Promise<Transaction | null> {
     const existing = this.store.get(id);
     if (!existing) return null;
 
-    const updated: Dividend = {
+    const updated: Transaction = {
       ...existing,
       ...(dto.tickerSymbol !== undefined && { tickerSymbol: dto.tickerSymbol }),
-      ...(dto.dividendDate !== undefined && { dividendDate: dto.dividendDate }),
-      ...(dto.amountPerShare !== undefined && { amountPerShare: dto.amountPerShare }),
+      ...(dto.transactionDate !== undefined && { transactionDate: dto.transactionDate }),
+      ...(dto.pricePerShare !== undefined && { pricePerShare: dto.pricePerShare }),
+      ...(dto.shares !== undefined && { shares: dto.shares }),
       ...(dto.totalAmount !== undefined && { totalAmount: dto.totalAmount }),
-      ...(dto.sharesHeld !== undefined && { sharesHeld: dto.sharesHeld }),
+      ...(dto.source !== undefined && { source: dto.source }),
       updatedAt: new Date().toISOString(),
     };
     this.store.set(id, updated);
@@ -103,30 +110,48 @@ export class InMemoryDividendRepository implements IDividendRepository {
     return this.store.delete(id);
   }
 
-  async findById(id: string): Promise<Dividend | null> {
-    const dividend = this.store.get(id);
-    return dividend ? { ...dividend } : null;
+  async findById(id: string): Promise<Transaction | null> {
+    const txn = this.store.get(id);
+    return txn ? { ...txn } : null;
   }
 
-  async findAll(userId: string, filters: DividendFilters): Promise<PaginatedResult<Dividend>> {
-    let results = Array.from(this.store.values()).filter((d) => d.userId === userId);
+  async findAll(filters: TransactionFilters): Promise<PaginatedResult<Transaction>> {
+    let results = Array.from(this.store.values());
 
     // ── Filtering ──
     if (filters.tickerSymbol) {
       const ticker = filters.tickerSymbol;
-      results = results.filter((d) => d.tickerSymbol === ticker);
+      results = results.filter((t) => t.tickerSymbol === ticker);
     }
     if (filters.fromDate) {
       const from = filters.fromDate;
-      results = results.filter((d) => d.dividendDate >= from);
+      results = results.filter((t) => t.transactionDate >= from);
     }
     if (filters.toDate) {
       const to = filters.toDate;
-      results = results.filter((d) => d.dividendDate <= to);
+      results = results.filter((t) => t.transactionDate <= to);
     }
 
-    // ── Sorting (by date descending by default) ──
-    results.sort((a, b) => b.dividendDate.localeCompare(a.dividendDate));
+    // ── Sorting ──
+    const sortBy = filters.sortBy ?? 'date';
+    const sortOrder = filters.sortOrder ?? 'desc';
+    const direction = sortOrder === 'asc' ? 1 : -1;
+
+    results.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'date':
+          cmp = a.transactionDate.localeCompare(b.transactionDate);
+          break;
+        case 'ticker':
+          cmp = a.tickerSymbol.localeCompare(b.tickerSymbol);
+          break;
+        case 'amount':
+          cmp = a.totalAmount - b.totalAmount;
+          break;
+      }
+      return cmp * direction;
+    });
 
     // ── Pagination ──
     const page = filters.page ?? 1;
@@ -139,13 +164,9 @@ export class InMemoryDividendRepository implements IDividendRepository {
     return { data, total, page, pageSize, totalPages };
   }
 
-  async findByUser(userId: string): Promise<Dividend[]> {
-    return Array.from(this.store.values()).filter((d) => d.userId === userId);
-  }
-
-  async findByUserAndTicker(userId: string, ticker: string): Promise<Dividend[]> {
+  async findByUserAndTicker(userId: string, ticker: string): Promise<Transaction[]> {
     return Array.from(this.store.values()).filter(
-      (d) => d.userId === userId && d.tickerSymbol === ticker,
+      (t) => t.userId === userId && t.tickerSymbol === ticker,
     );
   }
 }

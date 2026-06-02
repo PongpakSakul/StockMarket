@@ -2,16 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import slipsRouter from './routes/slips';
-import transactionsRouter from './routes/transactions';
-import tickersRouter from './routes/tickers';
-import portfolioRouter from './routes/portfolio';
-import exchangeRateRouter from './routes/exchange-rate';
-import dividendsRouter from './features/dividends/routes';
-import exportRouter from './routes/export';
-import importRouter from './routes/import';
-import stocksRouter from './routes/stock-routes';
-import watchlistRouter from './routes/watchlist-routes';
+import slipsRouter from './features/slips/slips.routes';
+import transactionsRouter from './features/transaction/transaction.routes';
+import tickersRouter from './features/transaction/tickers.routes';
+import portfolioRouter from './features/portfolio/portfolio.routes';
+import exchangeRateRouter from './features/exchange-rate/exchange-rate.routes';
+import dividendsRouter from './features/dividends/dividends.routes';
+import exportRouter from './features/export/export.routes';
+import importRouter from './features/import/import.routes';
+import stocksRouter from './features/charts/stock.routes';
+import watchlistRouter from './features/watch-list/watchlist.routes';
 
 const app = express();
 

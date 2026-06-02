@@ -1,4 +1,4 @@
-import { OCRResult } from '../types';
+import { OCRResult } from '../../types';
 
 /**
  * Default configuration for the OCR service retry logic.

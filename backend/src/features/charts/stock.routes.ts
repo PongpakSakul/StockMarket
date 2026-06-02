@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { ChartService, IFinancialApiClient } from '../services/chart-service';
-import { APIError, TimeRange, OHLCData, StockInfo, TickerSearchResult } from '../types';
-import { InMemoryCache, appCache } from '../cache/in-memory-cache';
+import { ChartService, IFinancialApiClient } from './chart.service';
+import { APIError, TimeRange, OHLCData, StockInfo, TickerSearchResult } from '../../types';
+import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
 
 // ────────────────────────────────────────────────────────────
 // Constants

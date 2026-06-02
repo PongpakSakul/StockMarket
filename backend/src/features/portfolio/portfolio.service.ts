@@ -5,7 +5,7 @@ import {
   AssetAllocation,
   ExchangeRate,
   TimeRange,
-} from '../types';
+} from '../../types';
 
 // ────────────────────────────────────────────────────────────
 // Types for Portfolio Service

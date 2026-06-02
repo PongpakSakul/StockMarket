@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { isValidTicker } from '../services/transaction-service';
+import { isValidTicker } from './transaction.service';
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router (for testing)
