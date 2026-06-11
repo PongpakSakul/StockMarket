@@ -15,16 +15,21 @@ const VALID_SORT_ORDERS: WatchlistSortOrder[] = ['asc', 'desc'];
 // Factory to create router with injected dependencies (for testing)
 // ────────────────────────────────────────────────────────────
 
+import { IWatchlistRepository } from './watchlist.repository';
+import { PostgresWatchlistRepository } from './postgres-watchlist.repository';
+
 export interface WatchlistRouterDeps {
   apiClient: IFinancialApiClient;
   cache?: InMemoryCache;
   watchlistService?: WatchlistService;
+  watchlistRepository?: IWatchlistRepository;
 }
 
 export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
   const cache = deps.cache ?? appCache;
   const chartService = new ChartService(deps.apiClient, cache);
-  const watchlistService = deps.watchlistService ?? new WatchlistService(chartService);
+  const repository = deps.watchlistRepository ?? new PostgresWatchlistRepository();
+  const watchlistService = deps.watchlistService ?? new WatchlistService(chartService, repository);
   const router = Router();
 
   /**
@@ -180,9 +185,6 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 // ────────────────────────────────────────────────────────────
 
 import { YahooFinanceClient } from '../charts/yahoo-finance.client';
-import { PostgresWatchlistRepository } from './postgres-watchlist.repository';
-
 export default createWatchlistRouter({
   apiClient: new YahooFinanceClient(),
-  watchlistService: new WatchlistService(new ChartService(new YahooFinanceClient(), appCache), new PostgresWatchlistRepository()),
 });
