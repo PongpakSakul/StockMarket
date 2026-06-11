@@ -3,12 +3,15 @@ import { TransactionService, ValidationError } from './transaction.service';
 import { InMemoryTransactionRepository } from './transaction.repository';
 import { TransactionFilters, APIError } from '../../types';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { resolveUserId } from '../../db/constants';
+
+import { PostgresTransactionRepository } from './postgres-transaction.repository';
 
 // ────────────────────────────────────────────────────────────
 // Default repository & service (can be overridden via factory)
 // ────────────────────────────────────────────────────────────
 
-const defaultRepository = new InMemoryTransactionRepository();
+const defaultRepository = new PostgresTransactionRepository();
 const defaultService = new TransactionService(defaultRepository);
 
 // ────────────────────────────────────────────────────────────
@@ -111,6 +114,28 @@ export function createTransactionsRouter(depsOrService?: TransactionsRouterDeps 
   });
 
   /**
+   * GET /api/transactions/buy-points/:ticker
+   *
+   * Get aggregated buy points for a specific ticker to display on charts.
+   */
+  router.get('/buy-points/:ticker', async (req: Request, res: Response) => {
+    try {
+      const ticker = String(req.params.ticker).toUpperCase();
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
+      
+      const buyPoints = await txnService.getBuyPointsForTicker(ticker, userId);
+      res.status(200).json(buyPoints);
+    } catch {
+      const apiError: APIError = {
+        code: 'INTERNAL_ERROR',
+        message: 'An unexpected error occurred while fetching buy points',
+        retryable: true,
+      };
+      res.status(500).json(apiError);
+    }
+  });
+
+  /**
    * POST /api/transactions
    *
    * Body: { tickerSymbol, transactionDate, pricePerShare, shares, totalAmount, source?, slipImageUrl?, ocrRawText? }
@@ -132,7 +157,7 @@ export function createTransactionsRouter(depsOrService?: TransactionsRouterDeps 
         return;
       }
 
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const transaction = await txnService.createTransaction({
         userId,
         tickerSymbol: String(tickerSymbol).toUpperCase(),
@@ -179,7 +204,7 @@ export function createTransactionsRouter(depsOrService?: TransactionsRouterDeps 
    */
   router.put('/:id', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const id = req.params.id as string;
       const { tickerSymbol, transactionDate, pricePerShare, shares, totalAmount, source } = req.body;
 
@@ -225,7 +250,7 @@ export function createTransactionsRouter(depsOrService?: TransactionsRouterDeps 
    */
   router.delete('/:id', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const id = req.params.id as string;
       await txnService.deleteTransaction(id);
 

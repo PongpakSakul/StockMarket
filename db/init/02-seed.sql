@@ -37,3 +37,13 @@ INSERT INTO tickers (symbol, name, type, exchange, is_active) VALUES
     ('CRM',  'Salesforce Inc.',                          'stock', 'NYSE',   TRUE),
     ('COST', 'Costco Wholesale Corporation',             'stock', 'NASDAQ', TRUE)
 ON CONFLICT (symbol) DO NOTHING;
+
+-- ===========================================
+-- Default user for local development
+-- ===========================================
+-- This user is used when no authentication is configured.
+-- The backend uses 'default-user' header value which maps to this ID.
+
+INSERT INTO users (id, email, password_hash) VALUES
+    ('00000000-0000-0000-0000-000000000001', 'dev@localhost', 'not-a-real-hash')
+ON CONFLICT (id) DO NOTHING;

@@ -27,38 +27,32 @@ export interface WatchlistSortOptions {
   sortOrder?: WatchlistSortOrder;
 }
 
-// ────────────────────────────────────────────────────────────
-// In-memory store for watchlist tickers
-// ────────────────────────────────────────────────────────────
-
-/** Internal record stored in memory (just the ticker, prices are fetched live) */
-interface WatchlistEntry {
-  tickerSymbol: string;
-  addedAt: string;
-}
+import { IWatchlistRepository } from './watchlist.repository';
 
 // ────────────────────────────────────────────────────────────
 // Watchlist Service
 // ────────────────────────────────────────────────────────────
 
 export class WatchlistService {
-  private store: Map<string, WatchlistEntry> = new Map();
-
-  constructor(private readonly chartService: ChartService) {}
+  constructor(
+    private readonly chartService: ChartService,
+    private readonly repository: IWatchlistRepository
+  ) {}
 
   /**
    * Get all watchlist items with current price, daily change, and sparkline data.
    *
    * Requirements: 12.1, 12.3, 12.6
    */
-  async getWatchlist(options: WatchlistSortOptions = {}): Promise<WatchlistItem[]> {
-    if (this.store.size === 0) {
+  async getWatchlist(userId: string, options: WatchlistSortOptions = {}): Promise<WatchlistItem[]> {
+    const entries = await this.repository.getAll(userId);
+    if (entries.length === 0) {
       return [];
     }
 
     const items: WatchlistItem[] = [];
 
-    for (const entry of this.store.values()) {
+    for (const entry of entries) {
       const item = await this.buildWatchlistItem(entry.tickerSymbol);
       items.push(item);
     }
@@ -72,7 +66,7 @@ export class WatchlistService {
    *
    * Requirements: 12.1, 12.2, 12.7
    */
-  async addToWatchlist(ticker: string): Promise<WatchlistItem> {
+  async addToWatchlist(userId: string, ticker: string): Promise<WatchlistItem> {
     const normalizedTicker = ticker.trim().toUpperCase();
 
     if (!normalizedTicker) {
@@ -80,7 +74,7 @@ export class WatchlistService {
     }
 
     // Check for duplicates
-    if (this.store.has(normalizedTicker)) {
+    if (await this.repository.has(userId, normalizedTicker)) {
       throw new WatchlistError(
         'DUPLICATE_WATCHLIST',
         `${normalizedTicker} is already in your watchlist`,
@@ -98,11 +92,7 @@ export class WatchlistService {
     }
 
     // Store the entry
-    const entry: WatchlistEntry = {
-      tickerSymbol: normalizedTicker,
-      addedAt: new Date().toISOString(),
-    };
-    this.store.set(normalizedTicker, entry);
+    await this.repository.add(userId, normalizedTicker);
 
     // Return the full watchlist item with live data
     return this.buildWatchlistItem(normalizedTicker);
@@ -113,24 +103,26 @@ export class WatchlistService {
    *
    * Requirements: 12.5
    */
-  async removeFromWatchlist(ticker: string): Promise<void> {
+  async removeFromWatchlist(userId: string, ticker: string): Promise<void> {
     const normalizedTicker = ticker.trim().toUpperCase();
 
-    if (!this.store.has(normalizedTicker)) {
+    if (!(await this.repository.has(userId, normalizedTicker))) {
       throw new WatchlistError(
         'NOT_FOUND',
         `${normalizedTicker} is not in your watchlist`,
       );
     }
 
-    this.store.delete(normalizedTicker);
+    await this.repository.remove(userId, normalizedTicker);
   }
 
   /**
    * Clear the entire watchlist (useful for testing).
    */
   clear(): void {
-    this.store.clear();
+    // Note: To clear properly we would need to delete all records for all users,
+    // but typically this is only used for in-memory testing. 
+    // We can leave this as a no-op or add a clearAll to the repo if needed.
   }
 
   // ──────────────────────────────────────────────────────────

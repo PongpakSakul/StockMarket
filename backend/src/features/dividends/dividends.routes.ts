@@ -5,6 +5,7 @@ import { InMemoryTransactionRepository } from '../transaction/transaction.reposi
 import { DividendFilters, APIError, TimeRange } from '../../types';
 import { ValidationError } from '../transaction/transaction.service';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { resolveUserId } from '../../db/constants';
 // ────────────────────────────────────────────────────────────
 // Default repository & service (can be overridden via factory)
 // ────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
    */
   router.get('/summary', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const range = (req.query.range as string) || '1Y';
 
       const validRanges: TimeRange[] = ['1W', '1M', '3M', '6M', '1Y', 'ALL'];
@@ -98,7 +99,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
    */
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const filters: DividendFilters = {};
 
       if (req.query.ticker) {
@@ -144,7 +145,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
    */
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld } = req.body;
 
       // Basic presence validation
@@ -208,7 +209,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
    */
   router.put('/:id', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const id = req.params.id as string;
       const { tickerSymbol, dividendDate, amountPerShare, totalAmount, sharesHeld } = req.body;
 
@@ -253,7 +254,7 @@ export function createDividendsRouter(depsOrService?: DividendsRouterDeps | Divi
    */
   router.delete('/:id', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const id = req.params.id as string;
 
       await dividendService.deleteDividend(id, userId);

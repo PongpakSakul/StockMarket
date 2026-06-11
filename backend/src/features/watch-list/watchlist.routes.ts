@@ -29,22 +29,15 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 
   /**
    * GET /api/watchlist
-   *
-   * Returns all watchlist items with current price, daily change, and sparkline.
-   * Supports sorting via query params.
-   *
-   * Query params:
-   *   - sortBy: 'ticker' | 'price' | 'percentChange' (default: 'ticker')
-   *   - sortOrder: 'asc' | 'desc' (default: 'asc')
-   *
-   * Requirements: 12.1, 12.5
    */
   router.get('/', async (req: Request, res: Response) => {
     try {
+      const userId = (req.headers['x-user-id'] as string) || 'default-user';
       // Parse and validate sort options
       const sortBy = req.query.sortBy ? String(req.query.sortBy) : undefined;
       const sortOrder = req.query.sortOrder ? String(req.query.sortOrder) : undefined;
 
+      // Validate query parameters before calling service
       if (sortBy && !VALID_SORT_FIELDS.includes(sortBy as WatchlistSortField)) {
         const apiError: APIError = {
           code: 'INVALID_SORT_FIELD',
@@ -65,7 +58,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
         return;
       }
 
-      const items = await watchlistService.getWatchlist({
+      const items = await watchlistService.getWatchlist(userId, {
         sortBy: sortBy as WatchlistSortField | undefined,
         sortOrder: sortOrder as WatchlistSortOrder | undefined,
       });
@@ -83,15 +76,10 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 
   /**
    * POST /api/watchlist
-   *
-   * Add a ticker to the watchlist.
-   *
-   * Body: { ticker: string }
-   *
-   * Requirements: 12.1, 12.5
    */
   router.post('/', async (req: Request, res: Response) => {
     try {
+      const userId = (req.headers['x-user-id'] as string) || 'default-user';
       const { ticker } = req.body;
 
       if (!ticker || typeof ticker !== 'string') {
@@ -104,7 +92,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
         return;
       }
 
-      const item = await watchlistService.addToWatchlist(ticker);
+      const item = await watchlistService.addToWatchlist(userId, ticker);
       res.status(201).json(item);
     } catch (err) {
       if (err instanceof WatchlistError) {
@@ -141,13 +129,10 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 
   /**
    * DELETE /api/watchlist/:ticker
-   *
-   * Remove a ticker from the watchlist.
-   *
-   * Requirements: 12.5
    */
   router.delete('/:ticker', async (req: Request, res: Response) => {
     try {
+      const userId = (req.headers['x-user-id'] as string) || 'default-user';
       const ticker = req.params.ticker as string;
 
       if (!ticker) {
@@ -160,7 +145,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
         return;
       }
 
-      await watchlistService.removeFromWatchlist(ticker);
+      await watchlistService.removeFromWatchlist(userId, ticker);
       res.status(204).send();
     } catch (err) {
       if (err instanceof WatchlistError) {
@@ -194,8 +179,10 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 // In production, wire a real API client in app.ts
 // ────────────────────────────────────────────────────────────
 
-import { StubFinancialApiClient } from '../charts/stock.routes';
+import { YahooFinanceClient } from '../charts/yahoo-finance.client';
+import { PostgresWatchlistRepository } from './postgres-watchlist.repository';
 
 export default createWatchlistRouter({
-  apiClient: new StubFinancialApiClient(),
+  apiClient: new YahooFinanceClient(),
+  watchlistService: new WatchlistService(new ChartService(new YahooFinanceClient(), appCache), new PostgresWatchlistRepository()),
 });

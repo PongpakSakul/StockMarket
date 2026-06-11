@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ExchangeRateService, IHttpClient, IFallbackRateStore } from './exchange-rate.service';
 import { APIError } from '../../types';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { YahooFinanceExchangeRateClient } from './yahoo-exchange-rate.client';
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router with injected dependencies (for testing)
@@ -43,24 +44,16 @@ export function createExchangeRateRouter(deps: ExchangeRateRouterDeps): Router {
   return router;
 }
 
+import { PostgresFallbackRateStore } from './postgres-fallback-rate.store';
+
 // ────────────────────────────────────────────────────────────
-// Default export — uses stub providers (for development/testing)
-// In production, wire real providers in app.ts
+// Default export — uses Yahoo Finance API (for production)
 // ────────────────────────────────────────────────────────────
 
-const stubHttpClient: IHttpClient = {
-  fetchRate: async () => ({
-    rate: 35.0,
-    fetchedAt: new Date().toISOString(),
-  }),
-};
-
-const stubFallbackStore: IFallbackRateStore = {
-  getLastKnownRate: async () => null,
-  saveRate: async () => {},
-};
+const realHttpClient = new YahooFinanceExchangeRateClient();
+const postgresFallbackStore = new PostgresFallbackRateStore();
 
 export default createExchangeRateRouter({
-  httpClient: stubHttpClient,
-  fallbackStore: stubFallbackStore,
+  httpClient: realHttpClient,
+  fallbackStore: postgresFallbackStore,
 });

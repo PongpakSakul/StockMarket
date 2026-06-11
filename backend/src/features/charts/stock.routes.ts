@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ChartService, IFinancialApiClient } from './chart.service';
 import { APIError, TimeRange, OHLCData, StockInfo, TickerSearchResult } from '../../types';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { YahooFinanceClient } from './yahoo-finance.client';
 
 // ────────────────────────────────────────────────────────────
 // Constants
@@ -221,5 +222,5 @@ export class StubFinancialApiClient implements IFinancialApiClient {
 // ────────────────────────────────────────────────────────────
 
 export default createStockRouter({
-  apiClient: new StubFinancialApiClient(),
+  apiClient: new YahooFinanceClient(),
 });

@@ -2,12 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { getRepositories } from './db/repositories';
+import { TransactionService } from './features/transaction/transaction.service';
+import { DividendService } from './features/dividends/dividends.service';
+import { createTransactionsRouter } from './features/transaction/transaction.routes';
+import { createDividendsRouter } from './features/dividends/dividends.routes';
 import slipsRouter from './features/slips/slips.routes';
-import transactionsRouter from './features/transaction/transaction.routes';
 import tickersRouter from './features/transaction/tickers.routes';
 import portfolioRouter from './features/portfolio/portfolio.routes';
 import exchangeRateRouter from './features/exchange-rate/exchange-rate.routes';
-import dividendsRouter from './features/dividends/dividends.routes';
 import exportRouter from './features/export/export.routes';
 import importRouter from './features/import/import.routes';
 import stocksRouter from './features/charts/stock.routes';
@@ -27,13 +30,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
+// ── Wire repositories ──
+const repos = getRepositories();
+const transactionService = new TransactionService(repos.transactions);
+const dividendService = new DividendService(repos.dividends, repos.transactions);
+
+// Routes (injected with real repositories)
 app.use('/api/slips', slipsRouter);
-app.use('/api/transactions', transactionsRouter);
+app.use('/api/transactions', createTransactionsRouter({ service: transactionService }));
 app.use('/api/tickers', tickersRouter);
 app.use('/api/portfolio', portfolioRouter);
 app.use('/api/exchange-rate', exchangeRateRouter);
-app.use('/api/dividends', dividendsRouter);
+app.use('/api/dividends', createDividendsRouter({ service: dividendService }));
 app.use('/api/export', exportRouter);
 app.use('/api/import', importRouter);
 app.use('/api/stocks', stocksRouter);

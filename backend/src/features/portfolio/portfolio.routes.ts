@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { resolveUserId } from '../../db/constants';
 import {
   PortfolioService,
   ITransactionProvider,
@@ -8,6 +9,9 @@ import {
 } from './portfolio.service';
 import { APIError, TimeRange } from '../../types';
 import { InMemoryCache, appCache } from '../../cache/in-memory-cache';
+import { ExchangeRateService, IFallbackRateStore } from '../exchange-rate/exchange-rate.service';
+import { YahooFinanceExchangeRateClient } from '../exchange-rate/yahoo-exchange-rate.client';
+import { PostgresFallbackRateStore } from '../exchange-rate/postgres-fallback-rate.store';
 
 // ────────────────────────────────────────────────────────────
 // Constants
@@ -51,7 +55,7 @@ export function createPortfolioRouter(deps: PortfolioRouterDeps): Router {
    */
   router.get('/summary', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const cacheKey = `portfolio:summary:${userId}`;
 
       const cached = cache.get(cacheKey);
@@ -84,7 +88,7 @@ export function createPortfolioRouter(deps: PortfolioRouterDeps): Router {
    */
   router.get('/allocation', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const cacheKey = `portfolio:allocation:${userId}`;
 
       const cached = cache.get(cacheKey);
@@ -120,7 +124,7 @@ export function createPortfolioRouter(deps: PortfolioRouterDeps): Router {
    */
   router.get('/performance', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
 
       // Parse and validate range
       const rangeParam = req.query.range ? String(req.query.range) : '1Y';
@@ -171,7 +175,7 @@ export function createPortfolioRouter(deps: PortfolioRouterDeps): Router {
    * Requirements: 7.2
    */
   router.post('/invalidate-cache', (req: Request, res: Response) => {
-    const userId = (req.headers['x-user-id'] as string) || 'default-user';
+    const userId = resolveUserId(req.headers['x-user-id'] as string);
     cache.invalidateByPrefix(`portfolio:summary:${userId}`);
     cache.invalidateByPrefix(`portfolio:allocation:${userId}`);
     cache.invalidateByPrefix(`portfolio:performance:${userId}`);
@@ -198,14 +202,13 @@ const stubPriceProvider: IPriceProvider = {
   getHistoricalPrices: async () => new Map(),
 };
 
-const stubExchangeRateProvider: IExchangeRateProvider = {
-  getCurrentRate: async () => ({
-    currencyPair: 'USD/THB',
-    rate: 35.0,
-    fetchedAt: new Date().toISOString(),
-    isStale: false,
-  }),
-};
+const postgresFallbackStore = new PostgresFallbackRateStore();
+
+const realExchangeRateProvider = new ExchangeRateService(
+  new YahooFinanceExchangeRateClient(),
+  appCache,
+  postgresFallbackStore
+);
 
 const stubDividendProvider: IDividendProvider = {
   getTotalDividendsForUser: async () => 0,
@@ -216,6 +219,6 @@ const stubDividendProvider: IDividendProvider = {
 export default createPortfolioRouter({
   transactionProvider: stubTransactionProvider,
   priceProvider: stubPriceProvider,
-  exchangeRateProvider: stubExchangeRateProvider,
+  exchangeRateProvider: realExchangeRateProvider,
   dividendProvider: stubDividendProvider,
 });
