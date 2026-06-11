@@ -131,7 +131,7 @@ export default function PortfolioDashboard({
       {/* Exchange Rate Info */}
       <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3" data-testid="exchange-rate-info">
         <span className="text-sm text-gray-600">
-          USD/THB: <span className="font-medium" data-testid="exchange-rate-value">{summary.exchangeRate.rate.toFixed(4)}</span>
+          USD/THB: <span className="font-medium" data-testid="exchange-rate-value">{summary.exchangeRate.rate.toFixed(2)}</span>
         </span>
         <span className="text-xs text-gray-400" data-testid="exchange-rate-updated">
           Updated: {formatTimestamp(summary.exchangeRate.fetchedAt)}

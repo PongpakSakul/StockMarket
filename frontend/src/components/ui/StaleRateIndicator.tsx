@@ -50,7 +50,7 @@ export default function StaleRateIndicator({ rate, fetchedAt, onRetry }: StaleRa
       </svg>
 
       <span className="text-xs text-yellow-800">
-        <span className="font-medium">USD/THB: {rate.toFixed(4)}</span>
+        <span className="font-medium">USD/THB: {rate.toFixed(2)}</span>
         <span className="ml-1 text-yellow-600">(cached from {formattedDate})</span>
       </span>
 
