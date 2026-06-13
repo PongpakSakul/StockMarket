@@ -7,7 +7,9 @@ import {
 } from './dividends.repository';
 import { ITransactionRepository } from '../transaction/transaction.repository';
 import { IDividendProvider } from '../portfolio/portfolio.service';
-import { ValidationError, isValidTicker, isValidTransactionDate, isPositiveNumber } from '../transaction/transaction.service';
+import { ValidationError, isValidTransactionDate, isPositiveNumber } from '../transaction/transaction.service';
+import { ChartService } from '../charts/chart.service';
+import { ensureTickerExists } from '../tickers/ticker.service';
 // ────────────────────────────────────────────────────────────
 // Dividend Summary
 // ────────────────────────────────────────────────────────────
@@ -61,6 +63,7 @@ export class DividendService implements IDividendProvider {
   constructor(
     private readonly repository: IDividendRepository,
     private readonly transactionRepository: ITransactionRepository,
+    private readonly chartService: ChartService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -74,12 +77,7 @@ export class DividendService implements IDividendProvider {
     totalAmount: number;
     sharesHeld: number;
   }): void {
-    if (!isValidTicker(data.tickerSymbol)) {
-      throw new ValidationError(
-        'INVALID_TICKER',
-        `Ticker symbol "${data.tickerSymbol}" is not a recognized stock or ETF`,
-      );
-    }
+    // Ticker validation is now performed asynchronously via ensureTickerExists
 
     if (!isValidTransactionDate(data.dividendDate)) {
       throw new ValidationError(
@@ -151,6 +149,8 @@ export class DividendService implements IDividendProvider {
       sharesHeld: dto.sharesHeld,
     });
 
+    await ensureTickerExists(dto.tickerSymbol, this.chartService);
+
     await this.validateTickerHeldByUser(dto.userId, dto.tickerSymbol, dto.dividendDate);
 
     return this.repository.create(dto);
@@ -180,6 +180,10 @@ export class DividendService implements IDividendProvider {
     };
 
     this.validateDividendInput(merged);
+
+    if (dto.tickerSymbol !== undefined && dto.tickerSymbol !== existing.tickerSymbol) {
+      await ensureTickerExists(dto.tickerSymbol, this.chartService);
+    }
 
     // Re-validate holding if ticker or date changed
     if (dto.tickerSymbol !== undefined || dto.dividendDate !== undefined) {

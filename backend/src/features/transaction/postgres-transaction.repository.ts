@@ -6,19 +6,17 @@ import crypto from 'crypto';
 export class PostgresTransactionRepository implements ITransactionRepository {
   
   async create(dto: CreateTransactionDTO): Promise<Transaction> {
-    const id = `txn-${crypto.randomUUID()}`;
-    const now = new Date().toISOString();
     const source = dto.source ?? 'manual';
     
     const query = `
       INSERT INTO transactions (
-        id, user_id, ticker_symbol, transaction_date, price_per_share, shares, total_amount, source, slip_image_url, ocr_raw_text, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        user_id, ticker_symbol, transaction_date, price_per_share, shares, total_amount, source, slip_image_url, ocr_raw_text
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `;
     const values = [
-      id, dto.userId, dto.tickerSymbol, dto.transactionDate, dto.pricePerShare, dto.shares, dto.totalAmount,
-      source, dto.slipImageUrl || null, dto.ocrRawText || null, now, now
+      dto.userId, dto.tickerSymbol, dto.transactionDate, dto.pricePerShare, dto.shares, dto.totalAmount,
+      source, dto.slipImageUrl || null, dto.ocrRawText || null
     ];
     
     const result = await db.query(query, values);

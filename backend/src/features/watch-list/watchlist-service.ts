@@ -28,6 +28,7 @@ export interface WatchlistSortOptions {
 }
 
 import { IWatchlistRepository } from './watchlist.repository';
+import { ensureTickerExists } from '../tickers/ticker.service';
 
 // ────────────────────────────────────────────────────────────
 // Watchlist Service
@@ -81,15 +82,8 @@ export class WatchlistService {
       );
     }
 
-    // Validate ticker via Financial API (ChartService.getStockInfo)
-    try {
-      await this.chartService.getStockInfo(normalizedTicker);
-    } catch {
-      throw new WatchlistError(
-        'INVALID_TICKER',
-        `Ticker symbol "${normalizedTicker}" is not a valid stock or ETF`,
-      );
-    }
+    // Validate ticker and ensure it exists in the database
+    await ensureTickerExists(normalizedTicker, this.chartService);
 
     // Store the entry
     await this.repository.add(userId, normalizedTicker);

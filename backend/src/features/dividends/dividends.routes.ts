@@ -10,9 +10,14 @@ import { resolveUserId } from '../../db/constants';
 // Default repository & service (can be overridden via factory)
 // ────────────────────────────────────────────────────────────
 
+import { YahooFinanceClient } from '../charts/yahoo-finance.client';
+import { ChartService } from '../charts/chart.service';
+
 const defaultDividendRepository = new InMemoryDividendRepository();
 const defaultTransactionRepository = new InMemoryTransactionRepository();
-const defaultService = new DividendService(defaultDividendRepository, defaultTransactionRepository);
+const apiClient = new YahooFinanceClient();
+const chartService = new ChartService(apiClient, appCache);
+const defaultService = new DividendService(defaultDividendRepository, defaultTransactionRepository, chartService);
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router with injected service (for testing)

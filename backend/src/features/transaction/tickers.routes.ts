@@ -1,33 +1,33 @@
 import { Router, Request, Response } from 'express';
-import { isValidTicker } from './transaction.service';
+import { ChartService } from '../charts/chart.service';
+import { YahooFinanceClient } from '../charts/yahoo-finance.client';
+import { appCache } from '../../cache/in-memory-cache';
 
-// ────────────────────────────────────────────────────────────
-// Factory to create router (for testing)
-// ────────────────────────────────────────────────────────────
+export interface TickersRouterDeps {
+  chartService?: ChartService;
+}
 
-export function createTickersRouter(): Router {
+export function createTickersRouter(deps?: TickersRouterDeps): Router {
+  const chartService = deps?.chartService ?? new ChartService(new YahooFinanceClient(), appCache);
   const router = Router();
 
   /**
    * GET /api/tickers/validate/:ticker
    *
-   * Validate a ticker symbol against the known ticker database.
+   * Validate a ticker symbol against Yahoo Finance.
    * Returns { valid: boolean, ticker: string }
-   *
-   * Requirements: 6.2
    */
-  router.get('/validate/:ticker', (req: Request, res: Response) => {
+  router.get('/validate/:ticker', async (req: Request, res: Response) => {
     const ticker = (req.params.ticker as string).toUpperCase();
-    const valid = isValidTicker(ticker);
-
-    res.status(200).json({
-      ticker,
-      valid,
-    });
+    try {
+      await chartService.getStockInfo(ticker);
+      res.status(200).json({ ticker, valid: true });
+    } catch {
+      res.status(200).json({ ticker, valid: false });
+    }
   });
 
   return router;
 }
 
-// Default export for convenience
 export default createTickersRouter();

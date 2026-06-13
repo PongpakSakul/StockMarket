@@ -4,7 +4,7 @@ import { IFallbackRateStore } from './exchange-rate.service';
 
 export class PostgresFallbackRateStore implements IFallbackRateStore {
   async getLastKnownRate(): Promise<ExchangeRate | null> {
-    const query = `SELECT rate, fetched_at FROM exchange_rates WHERE currency_pair = $1;`;
+    const query = `SELECT rate, fetched_at FROM exchange_rate_cache WHERE currency_pair = $1;`;
     const result = await db.query(query, ['USD/THB']);
     
     if (result.rows.length === 0) {
@@ -21,12 +21,13 @@ export class PostgresFallbackRateStore implements IFallbackRateStore {
 
   async saveRate(rate: ExchangeRate): Promise<void> {
     // Upsert the rate
+    const expiresAt = new Date(new Date(rate.fetchedAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
     const query = `
-      INSERT INTO exchange_rates (currency_pair, rate, fetched_at)
-      VALUES ($1, $2, $3)
+      INSERT INTO exchange_rate_cache (currency_pair, rate, fetched_at, expires_at)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (currency_pair) DO UPDATE 
-      SET rate = EXCLUDED.rate, fetched_at = EXCLUDED.fetched_at;
+      SET rate = EXCLUDED.rate, fetched_at = EXCLUDED.fetched_at, expires_at = EXCLUDED.expires_at;
     `;
-    await db.query(query, [rate.currencyPair, rate.rate, rate.fetchedAt]);
+    await db.query(query, [rate.currencyPair, rate.rate, rate.fetchedAt, expiresAt]);
   }
 }

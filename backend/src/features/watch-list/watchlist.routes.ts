@@ -17,6 +17,7 @@ const VALID_SORT_ORDERS: WatchlistSortOrder[] = ['asc', 'desc'];
 
 import { IWatchlistRepository } from './watchlist.repository';
 import { PostgresWatchlistRepository } from './postgres-watchlist.repository';
+import { resolveUserId } from '../../db/constants';
 
 export interface WatchlistRouterDeps {
   apiClient: IFinancialApiClient;
@@ -37,7 +38,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
    */
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       // Parse and validate sort options
       const sortBy = req.query.sortBy ? String(req.query.sortBy) : undefined;
       const sortOrder = req.query.sortOrder ? String(req.query.sortOrder) : undefined;
@@ -70,6 +71,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
 
       res.status(200).json(items);
     } catch (err) {
+      console.error(err);
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
         message: 'Unable to fetch watchlist. Please try again later.',
@@ -84,7 +86,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
    */
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const { ticker } = req.body;
 
       if (!ticker || typeof ticker !== 'string') {
@@ -123,6 +125,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
         }
       }
 
+      console.error(err);
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
         message: 'Unable to add ticker to watchlist. Please try again later.',
@@ -137,7 +140,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
    */
   router.delete('/:ticker', async (req: Request, res: Response) => {
     try {
-      const userId = (req.headers['x-user-id'] as string) || 'default-user';
+      const userId = resolveUserId(req.headers['x-user-id'] as string);
       const ticker = req.params.ticker as string;
 
       if (!ticker) {
@@ -167,6 +170,7 @@ export function createWatchlistRouter(deps: WatchlistRouterDeps): Router {
         }
       }
 
+      console.error(err);
       const apiError: APIError = {
         code: 'INTERNAL_ERROR',
         message: 'Unable to remove ticker from watchlist. Please try again later.',

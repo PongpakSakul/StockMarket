@@ -25,12 +25,7 @@ export class ValidationError extends Error {
 // Validation helpers
 // ────────────────────────────────────────────────────────────
 
-/**
- * Validate that a ticker symbol is in the known list.
- */
-export function isValidTicker(ticker: string): boolean {
-  return KNOWN_TICKER_LIST.includes(ticker.toUpperCase());
-}
+// isValidTicker removed in favor of dynamic validation via ensureTickerExists
 
 /**
  * Validate that a date string is a valid ISO 8601 date (YYYY-MM-DD)
@@ -70,8 +65,14 @@ export function isPositiveNumber(value: number): boolean {
 // Transaction Service
 // ────────────────────────────────────────────────────────────
 
+import { ChartService } from '../charts/chart.service';
+import { ensureTickerExists } from '../tickers/ticker.service';
+
 export class TransactionService {
-  constructor(private readonly repository: ITransactionRepository) {}
+  constructor(
+    private readonly repository: ITransactionRepository,
+    private readonly chartService: ChartService
+  ) {}
 
   /**
    * Validate all fields of a transaction input.
@@ -84,12 +85,7 @@ export class TransactionService {
     shares: number;
     totalAmount: number;
   }): void {
-    if (!isValidTicker(data.tickerSymbol)) {
-      throw new ValidationError(
-        'INVALID_TICKER',
-        `Ticker symbol "${data.tickerSymbol}" is not a recognized stock or ETF`,
-      );
-    }
+    // Ticker validation is now performed asynchronously via ensureTickerExists
 
     if (!isValidTransactionDate(data.transactionDate)) {
       throw new ValidationError(
@@ -133,6 +129,8 @@ export class TransactionService {
       totalAmount: dto.totalAmount,
     });
 
+    await ensureTickerExists(dto.tickerSymbol, this.chartService);
+
     return this.repository.create(dto);
   }
 
@@ -156,6 +154,10 @@ export class TransactionService {
     };
 
     this.validateTransactionInput(merged);
+
+    if (dto.tickerSymbol !== undefined && dto.tickerSymbol !== existing.tickerSymbol) {
+      await ensureTickerExists(dto.tickerSymbol, this.chartService);
+    }
 
     const updated = await this.repository.update(id, dto);
     if (!updated) {

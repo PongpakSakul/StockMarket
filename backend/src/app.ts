@@ -30,10 +30,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Wire repositories ──
+// ── Wire repositories & services ──
 const repos = getRepositories();
-const transactionService = new TransactionService(repos.transactions);
-const dividendService = new DividendService(repos.dividends, repos.transactions);
+
+import { YahooFinanceClient } from './features/charts/yahoo-finance.client';
+import { ChartService } from './features/charts/chart.service';
+import { appCache } from './cache/in-memory-cache';
+
+const apiClient = new YahooFinanceClient();
+const chartService = new ChartService(apiClient, appCache);
+
+const transactionService = new TransactionService(repos.transactions, chartService);
+const dividendService = new DividendService(repos.dividends, repos.transactions, chartService);
 
 // Routes (injected with real repositories)
 app.use('/api/slips', slipsRouter);

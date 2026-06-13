@@ -11,8 +11,13 @@ import { PostgresTransactionRepository } from './postgres-transaction.repository
 // Default repository & service (can be overridden via factory)
 // ────────────────────────────────────────────────────────────
 
+import { YahooFinanceClient } from '../charts/yahoo-finance.client';
+import { ChartService } from '../charts/chart.service';
+
 const defaultRepository = new PostgresTransactionRepository();
-const defaultService = new TransactionService(defaultRepository);
+const apiClient = new YahooFinanceClient();
+const chartService = new ChartService(apiClient, appCache);
+const defaultService = new TransactionService(defaultRepository, chartService);
 
 // ────────────────────────────────────────────────────────────
 // Factory to create router with injected service (for testing)
