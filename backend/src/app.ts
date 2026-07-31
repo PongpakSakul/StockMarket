@@ -15,6 +15,7 @@ import exportRouter from './features/export/export.routes';
 import importRouter from './features/import/import.routes';
 import stocksRouter from './features/charts/stock.routes';
 import watchlistRouter from './features/watch-list/watchlist.routes';
+import newsRouter from './features/news/news.routes';
 
 const app = express();
 
@@ -43,17 +44,40 @@ const chartService = new ChartService(apiClient, appCache);
 const transactionService = new TransactionService(repos.transactions, chartService);
 const dividendService = new DividendService(repos.dividends, repos.transactions, chartService);
 
+import { createPortfolioRouter } from './features/portfolio/portfolio.routes';
+import { ChartPriceProvider } from './features/portfolio/chart-price-provider';
+import { TransactionProviderAdapter, DividendProviderAdapter } from './features/portfolio/portfolio-providers';
+import { ExchangeRateService } from './features/exchange-rate/exchange-rate.service';
+import { YahooFinanceExchangeRateClient } from './features/exchange-rate/yahoo-exchange-rate.client';
+import { PostgresFallbackRateStore } from './features/exchange-rate/postgres-fallback-rate.store';
+
+const chartPriceProvider = new ChartPriceProvider(chartService);
+const txnProviderAdapter = new TransactionProviderAdapter();
+const divProviderAdapter = new DividendProviderAdapter();
+const exchangeRateService = new ExchangeRateService(
+  new YahooFinanceExchangeRateClient(),
+  appCache,
+  new PostgresFallbackRateStore()
+);
+
 // Routes (injected with real repositories)
 app.use('/api/slips', slipsRouter);
 app.use('/api/transactions', createTransactionsRouter({ service: transactionService }));
 app.use('/api/tickers', tickersRouter);
-app.use('/api/portfolio', portfolioRouter);
+app.use('/api/portfolio', createPortfolioRouter({
+  transactionProvider: txnProviderAdapter,
+  priceProvider: chartPriceProvider,
+  exchangeRateProvider: exchangeRateService,
+  dividendProvider: divProviderAdapter,
+  cache: appCache,
+}));
 app.use('/api/exchange-rate', exchangeRateRouter);
 app.use('/api/dividends', createDividendsRouter({ service: dividendService }));
 app.use('/api/export', exportRouter);
 app.use('/api/import', importRouter);
 app.use('/api/stocks', stocksRouter);
 app.use('/api/watchlist', watchlistRouter);
+app.use('/api/news', newsRouter);
 
 // Error handling middleware
 app.use(

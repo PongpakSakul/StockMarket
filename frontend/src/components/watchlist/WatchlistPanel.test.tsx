@@ -34,7 +34,7 @@ function createMockStore(watchlistState?: Partial<WatchlistState>) {
   return configureStore({
     reducer: {
       watchlist: watchlistReducer,
-    },
+    } as any,
     preloadedState: {
       watchlist: {
         items: sampleItems,

@@ -22,17 +22,33 @@ export interface StockChartProps {
 }
 
 function formatOHLCData(data: OHLCData[]): CandlestickData<Time>[] {
-  return data.map((d) => ({
-    time: d.time as Time,
-    open: d.open,
-    high: d.high,
-    low: d.low,
-    close: d.close,
-  }));
+  const map = new Map<string | number, CandlestickData<Time>>();
+
+  data.forEach((d) => {
+    map.set(d.time, {
+      time: d.time as Time,
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.time < b.time) return -1;
+    if (a.time > b.time) return 1;
+    return 0;
+  });
 }
 
 function createBuyPointMarkers(buyPoints: BuyPoint[]): SeriesMarker<Time>[] {
-  return buyPoints.map((bp) => ({
+  const sorted = [...buyPoints].sort((a, b) => {
+    if (a.date < b.date) return -1;
+    if (a.date > b.date) return 1;
+    return 0;
+  });
+
+  return sorted.map((bp) => ({
     time: bp.date as Time,
     position: 'belowBar' as const,
     color: '#2196F3',

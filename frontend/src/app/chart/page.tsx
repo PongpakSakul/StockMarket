@@ -15,6 +15,7 @@ import TimeRangeSelector from '@/components/chart/TimeRangeSelector';
 import TransactionDetailPanel from '@/components/chart/TransactionDetailPanel';
 import ChartErrorBanner from '@/components/chart/ChartErrorBanner';
 import { ChartSkeleton } from '@/components/ui/Skeleton';
+import { NewsAndInsights } from '@/components/news/NewsAndInsights';
 
 export default function ChartPage() {
   const dispatch = useAppDispatch();
@@ -107,16 +108,21 @@ export default function ChartPage() {
       {loading && !priceData.length ? (
         <ChartSkeleton />
       ) : selectedTicker && priceData.length > 0 ? (
-        <div className="bg-white rounded-lg shadow p-4">
-          <StockChart
-            ticker={selectedTicker}
-            timeRange={timeRange}
-            buyPoints={buyPoints}
-            averageCostBasis={averageCostBasis}
-            priceData={priceData}
-            loading={loading}
-          />
-        </div>
+        <>
+          <div className="bg-white rounded-lg shadow p-4">
+            <StockChart
+              ticker={selectedTicker}
+              timeRange={timeRange}
+              buyPoints={buyPoints}
+              averageCostBasis={averageCostBasis}
+              priceData={priceData}
+              loading={loading}
+            />
+          </div>
+          
+          {/* News and AI Insights */}
+          <NewsAndInsights ticker={selectedTicker} />
+        </>
       ) : (
         <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
           <p className="text-lg">Search for a stock or ETF to view its chart</p>

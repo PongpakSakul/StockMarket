@@ -6,6 +6,7 @@ import dividendsReducer from './slices/dividendsSlice';
 import watchlistReducer from './slices/watchlistSlice';
 import exchangeRateReducer from './slices/exchangeRateSlice';
 import uiReducer from './slices/uiSlice';
+import newsReducer from './slices/newsSlice';
 import { errorMiddleware } from './errorMiddleware';
 import { cacheInvalidationMiddleware } from './cacheInvalidationMiddleware';
 
@@ -19,6 +20,7 @@ export const makeStore = () => {
       watchlist: watchlistReducer,
       exchangeRate: exchangeRateReducer,
       ui: uiReducer,
+      news: newsReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware()

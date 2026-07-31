@@ -26,7 +26,7 @@ const mockCreateChart = vi.fn(() => ({
 }));
 
 vi.mock('lightweight-charts', () => ({
-  createChart: (...args: unknown[]) => mockCreateChart(...args),
+  createChart: (...args: any[]) => mockCreateChart(...args),
   ColorType: { Solid: 'solid' },
 }));
 

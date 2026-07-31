@@ -37,6 +37,8 @@ const defaultChartState = {
   error: null,
 };
 
+import newsReducer from '@/store/slices/newsSlice';
+
 function createTestStore() {
   return configureStore({
     reducer: {
@@ -47,7 +49,8 @@ function createTestStore() {
       watchlist: watchlistReducer,
       exchangeRate: exchangeRateReducer,
       ui: uiReducer,
-    },
+      news: newsReducer,
+    } as any,
     preloadedState: {
       chart: { ...defaultChartState },
     } as never,

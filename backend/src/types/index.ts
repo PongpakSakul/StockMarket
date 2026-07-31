@@ -278,3 +278,24 @@ export interface APIError {
   /** Whether the client should retry the request */
   retryable: boolean;
 }
+
+// ============================================================
+// News & AI Types
+// ============================================================
+
+export interface StockNews {
+  uuid: string;
+  title: string;
+  publisher: string;
+  link: string;
+  providerPublishTime: number;
+  type: string;
+}
+
+export interface NewsAnalysisResult {
+  ticker: string;
+  articles: StockNews[];
+  aiSummary: string;
+  aiProvider?: 'OpenAI' | 'Gemini' | 'None';
+  isStale?: boolean;
+}
